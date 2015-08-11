@@ -38,6 +38,8 @@
 #include <stdlib.h>
 #include <signal.h>
 
+double g_fixture_slowdown_factor = 1.0;
+
 #if GPR_GETPID_IN_UNISTD_H
 #include <unistd.h>
 static int seed(void) { return getpid(); }
@@ -66,10 +68,20 @@ LONG crash_handler(struct _EXCEPTION_POINTERS* ex_info) {
   return EXCEPTION_EXECUTE_HANDLER;
 }
 
+void abort_handler(int sig) {
+  gpr_log(GPR_DEBUG, "Abort handler called.");
+  if (IsDebuggerPresent()) {
+    __debugbreak();
+  } else {
+    _exit(1);
+  }
+}
+
 static void install_crash_handler() {
   SetUnhandledExceptionFilter((LPTOP_LEVEL_EXCEPTION_FILTER) crash_handler);
   _set_abort_behavior(0, _WRITE_ABORT_MSG);
   _set_abort_behavior(0, _CALL_REPORTFAULT);
+  signal(SIGABRT, abort_handler);
 }
 #else
 static void install_crash_handler() { }

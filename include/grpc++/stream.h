@@ -54,7 +54,11 @@ class ClientStreamingInterface {
   // client side declares it has no more message to send, either implicitly or
   // by calling WritesDone, it needs to make sure there is no more message to
   // be received from the server, either implicitly or by getting a false from
-  // a Read(). Otherwise, this implicitly cancels the stream.
+  // a Read().
+  // This function will return either:
+  // - when all incoming messages have been read and the server has returned
+  //   status
+  // - OR when the server has returned a non-OK status
   virtual Status Finish() = 0;
 };
 
@@ -79,7 +83,11 @@ class WriterInterface {
 
   // Blocking write msg to the stream. Returns true on success.
   // Returns false when the stream has been closed.
-  virtual bool Write(const W& msg) = 0;
+  virtual bool Write(const W& msg, const WriteOptions& options) = 0;
+
+  inline bool Write(const W& msg) {
+    return Write(msg, WriteOptions());
+  }
 };
 
 template <class R>
@@ -168,9 +176,10 @@ class ClientWriter : public ClientWriterInterface<W> {
     cq_.Pluck(&ops);
   }
 
-  bool Write(const W& msg) GRPC_OVERRIDE {
+  using WriterInterface<W>::Write;
+  bool Write(const W& msg, const WriteOptions& options) GRPC_OVERRIDE {
     CallOpSet<CallOpSendMessage> ops;
-    if (!ops.SendMessage(msg).ok()) {
+    if (!ops.SendMessage(msg, options).ok()) {
       return false;
     }
     call_.PerformOps(&ops);
@@ -246,9 +255,10 @@ class ClientReaderWriter GRPC_FINAL : public ClientReaderWriterInterface<W, R> {
     return cq_.Pluck(&ops) && ops.got_message;
   }
 
-  bool Write(const W& msg) GRPC_OVERRIDE {
+  using WriterInterface<W>::Write;
+  bool Write(const W& msg, const WriteOptions& options) GRPC_OVERRIDE {
     CallOpSet<CallOpSendMessage> ops;
-    if (!ops.SendMessage(msg).ok()) return false;
+    if (!ops.SendMessage(msg, options).ok()) return false;
     call_.PerformOps(&ops);
     return cq_.Pluck(&ops);
   }
@@ -317,9 +327,10 @@ class ServerWriter GRPC_FINAL : public WriterInterface<W> {
     call_->cq()->Pluck(&ops);
   }
 
-  bool Write(const W& msg) GRPC_OVERRIDE {
+  using WriterInterface<W>::Write;
+  bool Write(const W& msg, const WriteOptions& options) GRPC_OVERRIDE {
     CallOpSet<CallOpSendInitialMetadata, CallOpSendMessage> ops;
-    if (!ops.SendMessage(msg).ok()) {
+    if (!ops.SendMessage(msg, options).ok()) {
       return false;
     }
     if (!ctx_->sent_initial_metadata_) {
@@ -359,9 +370,10 @@ class ServerReaderWriter GRPC_FINAL : public WriterInterface<W>,
     return call_->cq()->Pluck(&ops) && ops.got_message;
   }
 
-  bool Write(const W& msg) GRPC_OVERRIDE {
+  using WriterInterface<W>::Write;
+  bool Write(const W& msg, const WriteOptions& options) GRPC_OVERRIDE {
     CallOpSet<CallOpSendInitialMetadata, CallOpSendMessage> ops;
-    if (!ops.SendMessage(msg).ok()) {
+    if (!ops.SendMessage(msg, options).ok()) {
       return false;
     }
     if (!ctx_->sent_initial_metadata_) {
