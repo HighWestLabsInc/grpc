@@ -80,6 +80,8 @@ BINDIR = $(BUILDDIR)/bins
 OBJDIR = $(BUILDDIR)/objs
 LIBDIR = $(BUILDDIR)/libs
 GENDIR = $(BUILDDIR)/gens
+REALLIBDIR = $(realpath $(LIBDIR))
+
 
 # Configurations
 
@@ -3409,7 +3411,7 @@ $(LIBDIR)/$(CONFIG)/libgrpc.a: $(ZLIB_DEP) $(OPENSSL_DEP) $(LIBGRPC_OBJS)
 	$(Q) $(AR) rcs $(LIBDIR)/$(CONFIG)/libgrpc.a $(LIBGRPC_OBJS)
 	$(Q) rm -rf tmp-merge-grpc
 	$(Q) mkdir tmp-merge-grpc
-	$(Q) ( cd tmp-merge-grpc ; $(AR) x ../$(LIBDIR)/$(CONFIG)/libgrpc.a )
+	$(Q) ( cd tmp-merge-grpc ; $(AR) x $(REALLIBDIR)/$(CONFIG)/libgrpc.a )
 	$(Q) for l in $(OPENSSL_MERGE_LIBS) ; do ( cd tmp-merge-grpc ; ar x ../$${l} ) ; done
 	$(Q) rm -f $(LIBDIR)/$(CONFIG)/libgrpc.a tmp-merge-grpc/__.SYMDEF*
 	$(Q) ar rcs $(LIBDIR)/$(CONFIG)/libgrpc.a tmp-merge-grpc/*

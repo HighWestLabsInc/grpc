@@ -1,0 +1,99 @@
+#!/bin/bash
+
+#HOST_TOOL= <default is nothing>
+ZLIB_INCLUDE=/usr/include
+ZLIB_LIB=/usr/lib
+OPENSSL_INCLUDE=/usr/include
+OPENSSL_LIB=/usr/lib
+PREFIX=/usr/local
+
+for i in "$@"
+do
+case $i in
+    --source=*)
+    SOURCE_DIR="${i#*=}"
+    shift # past argument
+    ;;
+    --prefix=*)
+    PREFIX="${i#*=}"
+    shift # past argument
+    ;;
+    --host=*)
+    HOST_TOOL="${i#*=}"
+    shift # past argument
+    ;;
+    --with-zlib-include=*)
+    ZLIB_INCLUDE="${i#*=}"
+    shift # past argument
+    ;;
+    --with-zlib-lib=*)
+    ZLIB_LIB="${i#*=}"
+    shift # past argument
+    ;;
+    --with-openssl-include=*)
+    OPENSSL_INCLUDE="${i#*=}"
+    shift # past argument
+    ;;
+    --with-openssl-lib=*)
+    OPENSSL_LIB="${i#*=}"
+    shift # past argument
+    ;;
+    *)
+            # unknown option
+    ;;
+esac
+shift # past argument or value
+done
+
+BINARY_DIR=$PWD
+
+#DEBUG
+echo BINARY DIR = "${BINARY_DIR}"
+echo SOURCE DIR = "${SOURCE_DIR}"
+echo PREFIX = "${PREFIX}"
+echo HOST TOOL = "${HOST_TOOL}"
+echo ZLIB INCLUDE = "${ZLIB_INCLUDE}"
+echo ZLIB LIB = "${ZLIB_LIB}"
+echo OPENSSL INCLUDE = "${OPENSSL_INCLUDE}"
+echo OPENSSL LIB = "${OPENSSL_LIB}"
+
+echo -e "#!/bin/bash" > build.sh
+echo -e "#Build script. A wrapper around make for CMake ExternalProject_add." >> build.sh
+echo -e "" >> build.sh
+echo -e "HOST_TOOL=${HOST_TOOL}" >> build.sh
+echo -e "ZLIB_INCLUDE=${ZLIB_INCLUDE}" >> build.sh
+echo -e "ZLIB_LIB=${ZLIB_LIB}" >> build.sh
+echo -e "OPENSSL_INCLUDE=${OPENSSL_INCLUDE}" >> build.sh
+echo -e "OPENSSL_LIB=${OPENSSL_LIB}" >> build.sh
+echo -e "" >> build.sh
+echo -e "export PATH=$PATH:/home/vagrant/protoc/bin" >> build.sh
+echo -e "export CFLAGS='-I${PREFIX}/include -I${ZLIB_INCLUDE} -I${OPENSSL_INCLUDE}'" >> build.sh
+echo -e "export CPPFLAGS='-I${PREFIX}/include -I${ZLIB_INCLUDE} -I${OPENSSL_INCLUDE}'" >> build.sh
+echo -e "export LDFLAGS='-L${PREFIX}/lib -L${ZLIB_LIB} -L${OPENSSL_LIB} -Wl,-rpath-link,${PREFIX}/lib'" >> build.sh 
+echo -e 'pushd $PWD' >> build.sh
+echo -e "cd ${SOURCE_DIR}" >> build.sh
+#echo -e "make run_dep_checks CC=${HOST_TOOL}gcc LD=${HOST_TOOL}gcc AR=${HOST_TOOL}ar CXX=${HOST_TOOL}g++ LDXX=${HOST_TOOL}g++" >> build.sh
+echo -e "make BUILDDIR=${BINARY_DIR} prefix=${PREFIX} CC=${HOST_TOOL}gcc LD=${HOST_TOOL}gcc AR=${HOST_TOOL}ar CXX=${HOST_TOOL}g++ LDXX=${HOST_TOOL}g++" >> build.sh
+echo -e "popd" >> build.sh
+
+echo -e "#!/bin/bash" > install.sh
+echo -e "#Install script. A wrapper around make for CMake ExternalProject_add." >> install.sh
+echo -e "" >> install.sh
+echo -e "HOST_TOOL=${HOST_TOOL}" >> install.sh
+echo -e "ZLIB_INCLUDE=${ZLIB_INCLUDE}" >> install.sh
+echo -e "ZLIB_LIB=${ZLIB_LIB}" >> install.sh
+echo -e "OPENSSL_INCLUDE=${OPENSSL_INCLUDE}" >> install.sh
+echo -e "OPENSSL_LIB=${OPENSSL_LIB}" >> install.sh
+echo -e "" >> install.sh
+echo -e "export PATH=$PATH:/home/vagrant/protoc/bin" >> install.sh
+echo -e "export CFLAGS='-I${PREFIX}/include -I${ZLIB_INCLUDE} -I${OPENSSL_INCLUDE}'" >> install.sh
+echo -e "export CPPFLAGS='-I${PREFIX}/include -I${ZLIB_INCLUDE} -I${OPENSSL_INCLUDE}'" >> install.sh
+echo -e "export LDFLAGS='-L${PREFIX}/lib -L${ZLIB_LIB} -L${OPENSSL_LIB} -Wl,-rpath-link,${PREFIX}/lib'" >> install.sh 
+echo -e "" >> install.sh
+echo -e 'pushd $PWD' >> install.sh
+echo -e "cd ${SOURCE_DIR}" >> install.sh
+echo -e "make install BUILDDIR=${BINARY_DIR} prefix=${PREFIX} CC=${HOST_TOOL}gcc LD=${HOST_TOOL}gcc AR=${HOST_TOOL}ar CXX=${HOST_TOOL}g++ LDXX=${HOST_TOOL}g++ STRIP='${HOST_TOOL}strip --strip-unneeded'" >> install.sh
+echo -e "popd" >> install.sh
+
+chmod 755 build.sh
+chmod 755 install.sh
