@@ -6,6 +6,8 @@ ZLIB_LIB=/usr/lib
 OPENSSL_INCLUDE=/usr/include
 OPENSSL_LIB=/usr/lib
 PREFIX=/usr/local
+BUILD_TARGET=all
+INSTALL_TARGET=install
 
 for i in "$@"
 do
@@ -38,6 +40,14 @@ case $i in
     OPENSSL_LIB="${i#*=}"
     shift # past argument
     ;;
+    --build-target=*)
+    BUILD_TARGET="${i#*=}"
+    shift # past argument
+    ;;
+    --install-target=*)
+    INSTALL_TARGET="${i#*=}"
+    shift # past argument
+    ;;
     *)
             # unknown option
     ;;
@@ -56,6 +66,8 @@ echo ZLIB INCLUDE = "${ZLIB_INCLUDE}"
 echo ZLIB LIB = "${ZLIB_LIB}"
 echo OPENSSL INCLUDE = "${OPENSSL_INCLUDE}"
 echo OPENSSL LIB = "${OPENSSL_LIB}"
+echo BUILD_TARGET = "${BUILD_TARGET}"
+echo INSTALL_TARGET = "${INSTALL_TARGET}"
 
 echo -e "#!/bin/bash" > build.sh
 echo -e "#Build script. A wrapper around make for CMake ExternalProject_add." >> build.sh
@@ -73,7 +85,7 @@ echo -e "export LDFLAGS='-L${PREFIX}/lib -L${ZLIB_LIB} -L${OPENSSL_LIB} -Wl,-rpa
 echo -e 'pushd $PWD' >> build.sh
 echo -e "cd ${SOURCE_DIR}" >> build.sh
 #echo -e "make run_dep_checks CC=${HOST_TOOL}gcc LD=${HOST_TOOL}gcc AR=${HOST_TOOL}ar CXX=${HOST_TOOL}g++ LDXX=${HOST_TOOL}g++" >> build.sh
-echo -e "make BUILDDIR=${BINARY_DIR} prefix=${PREFIX} CC=${HOST_TOOL}gcc LD=${HOST_TOOL}gcc AR=${HOST_TOOL}ar CXX=${HOST_TOOL}g++ LDXX=${HOST_TOOL}g++" >> build.sh
+echo -e "make ${BUILD_TARGET} BUILDDIR=${BINARY_DIR} prefix=${PREFIX} CC=${HOST_TOOL}gcc LD=${HOST_TOOL}gcc AR=${HOST_TOOL}ar CXX=${HOST_TOOL}g++ LDXX=${HOST_TOOL}g++" >> build.sh
 echo -e "popd" >> build.sh
 
 echo -e "#!/bin/bash" > install.sh
@@ -92,7 +104,7 @@ echo -e "export LDFLAGS='-L${PREFIX}/lib -L${ZLIB_LIB} -L${OPENSSL_LIB} -Wl,-rpa
 echo -e "" >> install.sh
 echo -e 'pushd $PWD' >> install.sh
 echo -e "cd ${SOURCE_DIR}" >> install.sh
-echo -e "make install BUILDDIR=${BINARY_DIR} prefix=${PREFIX} CC=${HOST_TOOL}gcc LD=${HOST_TOOL}gcc AR=${HOST_TOOL}ar CXX=${HOST_TOOL}g++ LDXX=${HOST_TOOL}g++ STRIP='${HOST_TOOL}strip --strip-unneeded'" >> install.sh
+echo -e "make ${INSTALL_TARGET} BUILDDIR=${BINARY_DIR} prefix=${PREFIX} CC=${HOST_TOOL}gcc LD=${HOST_TOOL}gcc AR=${HOST_TOOL}ar CXX=${HOST_TOOL}g++ LDXX=${HOST_TOOL}g++ STRIP='${HOST_TOOL}strip --strip-unneeded'" >> install.sh
 echo -e "popd" >> install.sh
 
 chmod 755 build.sh
