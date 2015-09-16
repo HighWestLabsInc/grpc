@@ -92,16 +92,16 @@ namespace Grpc.HealthCheck.Tests
         public void NullsRejected()
         {
             var impl = new HealthServiceImpl();
-            Assert.Throws(typeof(NullReferenceException), () => impl.SetStatus(null, "", HealthCheckResponse.Types.ServingStatus.SERVING));
-            Assert.Throws(typeof(NullReferenceException), () => impl.SetStatus("", null, HealthCheckResponse.Types.ServingStatus.SERVING));
+            Assert.Throws(typeof(ArgumentNullException), () => impl.SetStatus(null, "", HealthCheckResponse.Types.ServingStatus.SERVING));
+            Assert.Throws(typeof(ArgumentNullException), () => impl.SetStatus("", null, HealthCheckResponse.Types.ServingStatus.SERVING));
 
-            Assert.Throws(typeof(NullReferenceException), () => impl.ClearStatus(null, ""));
-            Assert.Throws(typeof(NullReferenceException), () => impl.ClearStatus("", null));
+            Assert.Throws(typeof(ArgumentNullException), () => impl.ClearStatus(null, ""));
+            Assert.Throws(typeof(ArgumentNullException), () => impl.ClearStatus("", null));
         }
 
         private static HealthCheckResponse.Types.ServingStatus GetStatusHelper(HealthServiceImpl impl, string host, string service)
         {
-            return impl.Check(HealthCheckRequest.CreateBuilder().SetHost(host).SetService(service).Build(), null).Result.Status;
+            return impl.Check(new HealthCheckRequest { Host = host, Service = service }, null).Result.Status;
         }
     }
 }

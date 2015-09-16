@@ -57,8 +57,6 @@ ClientCredentials *pygrpc_ClientCredentials_composite(
     PyTypeObject *type, PyObject *args, PyObject *kwargs);
 ClientCredentials *pygrpc_ClientCredentials_compute_engine(
     PyTypeObject *type, PyObject *ignored);
-ClientCredentials *pygrpc_ClientCredentials_service_account(
-    PyTypeObject *type, PyObject *args, PyObject *kwargs);
 ClientCredentials *pygrpc_ClientCredentials_jwt(
     PyTypeObject *type, PyObject *args, PyObject *kwargs);
 ClientCredentials *pygrpc_ClientCredentials_refresh_token(
@@ -113,6 +111,9 @@ Call *pygrpc_Call_new_empty(CompletionQueue *cq);
 void pygrpc_Call_dealloc(Call *self);
 PyObject *pygrpc_Call_start_batch(Call *self, PyObject *args, PyObject *kwargs);
 PyObject *pygrpc_Call_cancel(Call *self, PyObject *args, PyObject *kwargs);
+PyObject *pygrpc_Call_peer(Call *self);
+PyObject *pygrpc_Call_set_credentials(Call *self, PyObject *args,
+                                      PyObject *kwargs);
 extern PyTypeObject pygrpc_Call_type;
 
 
@@ -129,6 +130,11 @@ Channel *pygrpc_Channel_new(
 void pygrpc_Channel_dealloc(Channel *self);
 Call *pygrpc_Channel_create_call(
     Channel *self, PyObject *args, PyObject *kwargs);
+PyObject *pygrpc_Channel_check_connectivity_state(Channel *self, PyObject *args,
+                                                  PyObject *kwargs);
+PyObject *pygrpc_Channel_watch_connectivity_state(Channel *self, PyObject *args,
+                                                  PyObject *kwargs);
+PyObject *pygrpc_Channel_target(Channel *self);
 extern PyTypeObject pygrpc_Channel_type;
 
 
@@ -140,6 +146,7 @@ typedef struct Server {
   PyObject_HEAD
   grpc_server *c_serv;
   CompletionQueue *cq;
+  int shutdown_called;
 } Server;
 Server *pygrpc_Server_new(PyTypeObject *type, PyObject *args, PyObject *kwargs);
 void pygrpc_Server_dealloc(Server *self);
@@ -150,6 +157,7 @@ PyObject *pygrpc_Server_add_http2_port(
 PyObject *pygrpc_Server_start(Server *self, PyObject *ignored);
 PyObject *pygrpc_Server_shutdown(
     Server *self, PyObject *args, PyObject *kwargs);
+PyObject *pygrpc_Server_cancel_all_calls(Server *self, PyObject *unused);
 extern PyTypeObject pygrpc_Server_type;
 
 /*=========*/
@@ -180,6 +188,9 @@ pygrpc_tag *pygrpc_produce_request_tag(PyObject *user_tag, Call *empty_call);
 
 /* Construct a tag associated with a server shutdown. */
 pygrpc_tag *pygrpc_produce_server_shutdown_tag(PyObject *user_tag);
+
+/* Construct a tag associated with a channel state change. */
+pygrpc_tag *pygrpc_produce_channel_state_change_tag(PyObject *user_tag);
 
 /* Frees all resources owned by the tag and the tag itself. */
 void pygrpc_discard_tag(pygrpc_tag *tag);

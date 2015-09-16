@@ -63,14 +63,8 @@ namespace Grpc.Core.Tests
         [TearDown]
         public void Cleanup()
         {
-            channel.Dispose();
+            channel.ShutdownAsync().Wait();
             server.ShutdownAsync().Wait();
-        }
-
-        [TestFixtureTearDown]
-        public void CleanupClass()
-        {
-            GrpcEnvironment.Shutdown();
         }
 
         [Test]
@@ -138,7 +132,7 @@ namespace Grpc.Core.Tests
             helper.ClientStreamingHandler = new ClientStreamingServerMethod<string, string>(async (requestStream, context) =>
             {
                 string result = "";
-                await requestStream.ForEach(async (request) =>
+                await requestStream.ForEachAsync(async (request) =>
                 {
                     result += request;
                 });
@@ -147,7 +141,7 @@ namespace Grpc.Core.Tests
             });
 
             var call = Calls.AsyncClientStreamingCall(helper.CreateClientStreamingCall());
-            await call.RequestStream.WriteAll(new string[] { "A", "B", "C" });
+            await call.RequestStream.WriteAllAsync(new string[] { "A", "B", "C" });
             Assert.AreEqual("ABC", await call.ResponseAsync);
         }
 
@@ -159,7 +153,7 @@ namespace Grpc.Core.Tests
             helper.ClientStreamingHandler = new ClientStreamingServerMethod<string, string>(async (requestStream, context) =>
             {
                 barrier.SetResult(null);
-                await requestStream.ToList();
+                await requestStream.ToListAsync();
                 return "";
             });
 
@@ -205,13 +199,6 @@ namespace Grpc.Core.Tests
 
             Assert.AreEqual(headers[1].Key, trailers[1].Key);
             CollectionAssert.AreEqual(headers[1].ValueBytes, trailers[1].ValueBytes);
-        }
-
-        [Test]
-        public void UnaryCall_DisposedChannel()
-        {
-            channel.Dispose();
-            Assert.Throws(typeof(ObjectDisposedException), () => Calls.BlockingUnaryCall(helper.CreateUnaryCall(), "ABC"));
         }
 
         [Test]

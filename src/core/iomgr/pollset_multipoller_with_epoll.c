@@ -99,7 +99,6 @@ static void perform_delayed_add(void *arg, int iomgr_status) {
   if (da->pollset->shutting_down) {
     /* We don't care about this pollset anymore. */
     if (da->pollset->in_flight_cbs == 0 && !da->pollset->called_shutdown) {
-      GPR_ASSERT(!grpc_pollset_has_workers(da->pollset));
       da->pollset->called_shutdown = 1;
       do_shutdown_cb = 1;
     }
@@ -181,7 +180,7 @@ static void multipoll_with_epoll_pollset_maybe_work(
   pfds[1].events = POLLIN;
   pfds[1].revents = 0;
 
-  poll_rv = poll(pfds, 2, timeout_ms);
+  poll_rv = grpc_poll_function(pfds, 2, timeout_ms);
 
   if (poll_rv < 0) {
     if (errno != EINTR) {
@@ -234,8 +233,7 @@ static void multipoll_with_epoll_pollset_destroy(grpc_pollset *pollset) {
 }
 
 static const grpc_pollset_vtable multipoll_with_epoll_pollset = {
-    multipoll_with_epoll_pollset_add_fd,
-    multipoll_with_epoll_pollset_del_fd,
+    multipoll_with_epoll_pollset_add_fd, multipoll_with_epoll_pollset_del_fd,
     multipoll_with_epoll_pollset_maybe_work,
     multipoll_with_epoll_pollset_finish_shutdown,
     multipoll_with_epoll_pollset_destroy};

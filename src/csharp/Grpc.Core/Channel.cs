@@ -43,28 +43,35 @@ using Grpc.Core.Utils;
 namespace Grpc.Core
 {
     /// <summary>
-    /// gRPC Channel
+    /// Represents a gRPC channel. Channels are an abstraction of long-lived connections to remote servers.
+    /// More client objects can reuse the same channel. Creating a channel is an expensive operation compared to invoking
+    /// a remote call so in general you should reuse a single channel for as many calls as possible.
     /// </summary>
-    public class Channel : IDisposable
+    public class Channel
     {
         static readonly ILogger Logger = GrpcEnvironment.Logger.ForType<Channel>();
 
+        readonly object myLock = new object();
+        readonly AtomicCounter activeCallCounter = new AtomicCounter();
+
+        readonly string target;
         readonly GrpcEnvironment environment;
         readonly ChannelSafeHandle handle;
         readonly List<ChannelOption> options;
-        bool disposed;
+
+        bool shutdownRequested;
 
         /// <summary>
         /// Creates a channel that connects to a specific host.
         /// Port will default to 80 for an unsecure channel and to 443 for a secure channel.
         /// </summary>
-        /// <param name="host">The name or IP address of the host.</param>
+        /// <param name="target">Target of the channel.</param>
         /// <param name="credentials">Credentials to secure the channel.</param>
         /// <param name="options">Channel options.</param>
-        public Channel(string host, Credentials credentials, IEnumerable<ChannelOption> options = null)
+        public Channel(string target, Credentials credentials, IEnumerable<ChannelOption> options = null)
         {
-            Preconditions.CheckNotNull(host);
-            this.environment = GrpcEnvironment.GetInstance();
+            this.target = Preconditions.CheckNotNull(target, "target");
+            this.environment = GrpcEnvironment.AddRef();
             this.options = options != null ? new List<ChannelOption>(options) : new List<ChannelOption>();
 
             EnsureUserAgentChannelOption(this.options);
@@ -73,11 +80,11 @@ namespace Grpc.Core
             {
                 if (nativeCredentials != null)
                 {
-                    this.handle = ChannelSafeHandle.CreateSecure(nativeCredentials, host, nativeChannelArgs);
+                    this.handle = ChannelSafeHandle.CreateSecure(nativeCredentials, target, nativeChannelArgs);
                 }
                 else
                 {
-                    this.handle = ChannelSafeHandle.CreateInsecure(host, nativeChannelArgs);
+                    this.handle = ChannelSafeHandle.CreateInsecure(target, nativeChannelArgs);
                 }
             }
         }
@@ -131,12 +138,21 @@ namespace Grpc.Core
             return tcs.Task;
         }
 
-        /// <summary> Address of the remote endpoint in URI format.</summary>
-        public string Target
+        /// <summary>Resolved address of the remote endpoint in URI format.</summary>
+        public string ResolvedTarget
         {
             get
             {
                 return handle.GetTarget();
+            }
+        }
+
+        /// <summary>The original target used to create the channel.</summary>
+        public string Target
+        {
+            get
+            {
+                return this.target;
             }
         }
 
@@ -147,6 +163,7 @@ namespace Grpc.Core
         /// There is no need to call this explicitly unless your use case requires that.
         /// Starting an RPC on a new channel will request connection implicitly.
         /// </summary>
+        /// <param name="deadline">The deadline. <c>null</c> indicates no deadline.</param>
         public async Task ConnectAsync(DateTime? deadline = null)
         {
             var currentState = handle.CheckConnectivityState(true);
@@ -162,12 +179,26 @@ namespace Grpc.Core
         }
 
         /// <summary>
-        /// Destroys the underlying channel.
+        /// Waits until there are no more active calls for this channel and then cleans up
+        /// resources used by this channel.
         /// </summary>
-        public void Dispose()
+        public async Task ShutdownAsync()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            lock (myLock)
+            {
+                Preconditions.CheckState(!shutdownRequested);
+                shutdownRequested = true;
+            }
+
+            var activeCallCount = activeCallCounter.Count;
+            if (activeCallCount > 0)
+            {
+                Logger.Warning("Channel shutdown was called but there are still {0} active calls for that channel.", activeCallCount);
+            }
+
+            handle.Dispose();
+
+            await Task.Run(() => GrpcEnvironment.Release());
         }
 
         internal ChannelSafeHandle Handle
@@ -186,13 +217,20 @@ namespace Grpc.Core
             }
         }
 
-        protected virtual void Dispose(bool disposing)
+        internal void AddCallReference(object call)
         {
-            if (disposing && handle != null && !disposed)
-            {
-                disposed = true;
-                handle.Dispose();
-            }
+            activeCallCounter.Increment();
+
+            bool success = false;
+            handle.DangerousAddRef(ref success);
+            Preconditions.CheckState(success);
+        }
+
+        internal void RemoveCallReference(object call)
+        {
+            handle.DangerousRelease();
+
+            activeCallCounter.Decrement();
         }
 
         private static void EnsureUserAgentChannelOption(List<ChannelOption> options)

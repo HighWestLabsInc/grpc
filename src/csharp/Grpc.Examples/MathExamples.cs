@@ -34,27 +34,27 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Grpc.Core.Utils;
 
-namespace math
+namespace Math
 {
     public static class MathExamples
     {
         public static void DivExample(Math.IMathClient client)
         {
-            DivReply result = client.Div(new DivArgs.Builder { Dividend = 10, Divisor = 3 }.Build());
+            DivReply result = client.Div(new DivArgs { Dividend = 10, Divisor = 3 });
             Console.WriteLine("Div Result: " + result);
         }
 
         public static async Task DivAsyncExample(Math.IMathClient client)
         {
-            DivReply result = await client.DivAsync(new DivArgs.Builder { Dividend = 4, Divisor = 5 }.Build());
+            DivReply result = await client.DivAsync(new DivArgs { Dividend = 4, Divisor = 5 });
             Console.WriteLine("DivAsync Result: " + result);
         }
 
         public static async Task FibExample(Math.IMathClient client)
         {
-            using (var call = client.Fib(new FibArgs.Builder { Limit = 5 }.Build()))
+            using (var call = client.Fib(new FibArgs { Limit = 5 }))
             {
-                List<Num> result = await call.ResponseStream.ToList();
+                List<Num> result = await call.ResponseStream.ToListAsync();
                 Console.WriteLine("Fib Result: " + string.Join("|", result));
             }
         }
@@ -63,14 +63,14 @@ namespace math
         {
             var numbers = new List<Num>
             {
-                new Num.Builder { Num_ = 1 }.Build(),
-                new Num.Builder { Num_ = 2 }.Build(),
-                new Num.Builder { Num_ = 3 }.Build()
+                new Num { Num_ = 1 },
+                new Num { Num_ = 2 },
+                new Num { Num_ = 3 }
             };
 
             using (var call = client.Sum())
             {
-                await call.RequestStream.WriteAll(numbers);
+                await call.RequestStream.WriteAllAsync(numbers);
                 Console.WriteLine("Sum Result: " + await call.ResponseAsync);
             }
         }
@@ -79,14 +79,14 @@ namespace math
         {
             var divArgsList = new List<DivArgs>
             {
-                new DivArgs.Builder { Dividend = 10, Divisor = 3 }.Build(),
-                new DivArgs.Builder { Dividend = 100, Divisor = 21 }.Build(),
-                new DivArgs.Builder { Dividend = 7, Divisor = 2 }.Build()
+                new DivArgs { Dividend = 10, Divisor = 3 },
+                new DivArgs { Dividend = 100, Divisor = 21 },
+                new DivArgs { Dividend = 7, Divisor = 2 }
             };
             using (var call = client.DivMany())
             { 
-                await call.RequestStream.WriteAll(divArgsList);
-                Console.WriteLine("DivMany Result: " + string.Join("|", await call.ResponseStream.ToList()));
+                await call.RequestStream.WriteAllAsync(divArgsList);
+                Console.WriteLine("DivMany Result: " + string.Join("|", await call.ResponseStream.ToListAsync()));
             }
         }
 
@@ -94,19 +94,19 @@ namespace math
         {
             var numbers = new List<Num>
             {
-                new Num.Builder { Num_ = 1 }.Build(), 
-                new Num.Builder { Num_ = 2 }.Build(),
-                new Num.Builder { Num_ = 3 }.Build()
+                new Num { Num_ = 1 }, 
+                new Num { Num_ = 2 },
+                new Num { Num_ = 3 }
             };
 
             Num sum;
             using (var sumCall = client.Sum())
             {
-                await sumCall.RequestStream.WriteAll(numbers);
+                await sumCall.RequestStream.WriteAllAsync(numbers);
                 sum = await sumCall.ResponseAsync;
             }
 
-            DivReply result = await client.DivAsync(new DivArgs.Builder { Dividend = sum.Num_, Divisor = numbers.Count }.Build());
+            DivReply result = await client.DivAsync(new DivArgs { Dividend = sum.Num_, Divisor = numbers.Count });
             Console.WriteLine("Avg Result: " + result);
         }
     }
